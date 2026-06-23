@@ -58,13 +58,13 @@ Follow these steps to install and run the project locally.
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/aholubko/landing-page.git
+git clone https://github.com/aholubko/2048-game.git
 ``` 
 
 ### 2. Navigate to the project directory
 
 ```bash
-cd landing-page 
+cd 2048-game 
 ```
 
 ### 3. Install dependencies
