@@ -268,7 +268,7 @@ class Game {
 
     const [r, c] = empty[Math.floor(Math.random() * empty.length)];
     const value = Math.random() < 0.1 ? 4 : 2;
-    
+
     this.board[r][c] = value;
 
     this.lastMoveInfo.spawned.push({
