@@ -18,15 +18,34 @@ function renderGame() {
 
 function renderBoard() {
   const state = game.getState().flat();
+  const moveInfo = game.getLastMoveInfo();
 
   cells.forEach((cell, index) => {
     const value = state[index];
+    const row = Math.floor(index / 4);
+    const col = index % 4;
 
     cell.textContent = value === 0 ? '' : value;
     cell.className = 'field-cell';
 
     if (value !== 0) {
       cell.classList.add(`field-cell--${value}`);
+    }
+
+    const isSpawned = moveInfo.spawned.some(
+      position => position.row === row && position.col === col,
+    );
+
+    const isMerged = moveInfo.merged.some(
+      position => position.row === row && position.col === col,
+    );
+
+    if (isSpawned) {
+      cell.classList.add('field-cell--spawn');
+    }
+
+    if (isMerged) {
+      cell.classList.add('field-cell--merge');
     }
   });
 }
@@ -99,7 +118,6 @@ buttonElement.addEventListener('click', () => {
     game.start();
   } else {
     game.restart();
-    game.start();
   }
 
   renderGame();

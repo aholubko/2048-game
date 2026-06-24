@@ -18,6 +18,11 @@ class Game {
     this.score = 0;
     this.status = 'idle';
 
+    this.lastMoveInfo = {
+      spawned: [],
+      merged: [],
+    };
+
     this.board = this.createEmptyBoard();
 
     if (this.isValidState(initialState)) {
@@ -46,6 +51,8 @@ class Game {
       return;
     }
 
+    this.resetLastMoveInfo();
+
     const result = this.moveBoardLeft(this.board);
 
     if (!result.changed) {
@@ -54,6 +61,7 @@ class Game {
 
     this.board = result.board;
     this.score += result.gainedScore;
+    this.lastMoveInfo.merged = result.merged;
 
     this.addRandomTile();
     this.updateStatus();
@@ -63,6 +71,8 @@ class Game {
     if (this.status !== 'playing') {
       return;
     }
+
+    this.resetLastMoveInfo();
 
     const reversedBoard = this.reverseRows(this.board);
     const result = this.moveBoardLeft(reversedBoard);
@@ -74,6 +84,11 @@ class Game {
     this.board = this.reverseRows(result.board);
     this.score += result.gainedScore;
 
+    this.lastMoveInfo.merged = result.merged.map(position => ({
+      row: position.row,
+      col: this.size - 1 - position.col,
+    }));
+
     this.addRandomTile();
     this.updateStatus();
   }
@@ -82,6 +97,8 @@ class Game {
     if (this.status !== 'playing') {
       return;
     }
+
+    this.resetLastMoveInfo();
 
     const transposedBoard = this.transpose(this.board);
     const result = this.moveBoardLeft(transposedBoard);
@@ -93,6 +110,11 @@ class Game {
     this.board = this.transpose(result.board);
     this.score += result.gainedScore;
 
+    this.lastMoveInfo.merged = result.merged.map(position => ({
+      row: position.col,
+      col: position.row,
+    }));
+
     this.addRandomTile();
     this.updateStatus();
   }
@@ -102,7 +124,10 @@ class Game {
       return;
     }
 
+    this.resetLastMoveInfo();
+
     const transposedBoard = this.transpose(this.board);
+
     const reversedBoard = this.reverseRows(transposedBoard);
 
     const result = this.moveBoardLeft(reversedBoard);
@@ -114,8 +139,16 @@ class Game {
     const restoredBoard = this.reverseRows(result.board);
 
     this.board = this.transpose(restoredBoard);
+
     this.score += result.gainedScore;
 
+    this.lastMoveInfo.merged = result.merged.map(position => ({
+
+      row: this.size - 1 - position.col,
+
+      col: position.row,
+
+    }));
     this.addRandomTile();
     this.updateStatus();
   }
@@ -138,6 +171,13 @@ class Game {
     return this.cloneBoard(this.board);
   }
 
+  getLastMoveInfo() {
+    return {
+      spawned: this.lastMoveInfo.spawned.map(position => ({ ...position })),
+      merged: this.lastMoveInfo.merged.map(position => ({ ...position })),
+    };
+  }
+
   /**
    * Returns the current game status.
    *
@@ -156,11 +196,10 @@ class Game {
     if (this.status !== 'idle') {
       return;
     }
-
     this.score = 0;
     this.status = 'playing';
     this.board = this.createEmptyBoard();
-
+    this.resetLastMoveInfo();
     this.addRandomTile();
     this.addRandomTile();
   }
@@ -172,7 +211,7 @@ class Game {
     this.score = 0;
     this.status = 'playing';
     this.board = this.createEmptyBoard();
-
+    this.resetLastMoveInfo();
     this.addRandomTile();
     this.addRandomTile();
   }
@@ -213,6 +252,13 @@ class Game {
     return cells;
   }
 
+  resetLastMoveInfo() {
+    this.lastMoveInfo = {
+      spawned: [],
+      merged: [],
+    };
+  }
+
   addRandomTile() {
     const empty = this.getEmptyCells();
 
@@ -222,8 +268,13 @@ class Game {
 
     const [r, c] = empty[Math.floor(Math.random() * empty.length)];
     const value = Math.random() < 0.1 ? 4 : 2;
-
+    
     this.board[r][c] = value;
+
+    this.lastMoveInfo.spawned.push({
+      row: r,
+      col: c,
+    });
 
     return true;
   }
@@ -267,20 +318,21 @@ class Game {
   }
 
   compressRowLeft(row) {
-    const filterd = row.filter((cell) => cell !== 0);
+    const filtered = row.filter(cell => cell !== 0);
     const result = [];
-
+    const mergedColumns = [];
     let gainedScore = 0;
 
-    for (let i = 0; i < filterd.length; i++) {
-      if (filterd[i] === filterd[i + 1]) {
-        const mergedValue = filterd[i] * 2;
+    for (let i = 0; i < filtered.length; i++) {
+      if (filtered[i] === filtered[i + 1]) {
+        const mergedValue = filtered[i] * 2;
 
         result.push(mergedValue);
+        mergedColumns.push(result.length - 1);
         gainedScore += mergedValue;
         i++;
       } else {
-        result.push(filterd[i]);
+        result.push(filtered[i]);
       }
     }
 
@@ -291,29 +343,42 @@ class Game {
     return {
       row: result,
       gainedScore,
+      mergedColumns,
     };
   }
 
   moveBoardLeft(board) {
     const newBoard = [];
+    const merged = [];
     let totalScore = 0;
 
-    for (const row of board) {
+    board.forEach((row, rowIndex) => {
       const result = this.compressRowLeft(row);
 
       newBoard.push(result.row);
+
       totalScore += result.gainedScore;
-    }
+
+      result.mergedColumns.forEach(col => {
+        merged.push({
+          row: rowIndex,
+          col,
+        });
+      });
+    });
 
     return {
       board: newBoard,
       gainedScore: totalScore,
       changed: !this.boardsEqual(board, newBoard),
+      merged,
     };
   }
 
   transpose(board) {
-    return board[0].map((_, colIndex) => board.map((row) => row[colIndex]));
+    return board[0].map((_, colIndex) =>
+      board.map(row => row[colIndex]),
+    );
   }
 }
 
